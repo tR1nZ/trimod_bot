@@ -117,7 +117,8 @@ def admin_create_event(message):
     else:
         event_spis = []
         events[message.chat.id] = event_spis
-        l = bot.send_message(message.chat.id, 'Чтобы создать таблицу укажите название мероприятия', reply_markup=klava_back)
+        l = bot.send_message(message.chat.id, 'Чтобы создать таблицу укажите название мероприятия',
+                             reply_markup=klava_back)
 
         bot.register_next_step_handler(l, create_event_name)  # запрашиваем имя мп
 
@@ -125,7 +126,10 @@ def admin_create_event(message):
 # переменная с названием мп
 def create_event_name(message):
     if backe(message) == False:
-        events.get(message.chat.id).append(message.text)
+        if message.text.count(' ') > 0:
+            events.get(message.chat.id).append(message.text.replace(' ', '_'))
+        else:
+            events.get(message.chat.id).append(message.text)
         l = bot.send_message(message.chat.id, 'Укажите имя создателя')
         bot.register_next_step_handler(l, create_event_manager)
 
@@ -156,7 +160,8 @@ def create_event_date(message):
     if backe(message) == False:
         message.text = ''.join(message.text.split('-'))
         if datetime.datetime.strptime(message.text, "%d%m%Y") <= datetime.datetime.now():
-            l = bot.send_message(message.chat.id, "Некоректная дата, пожалуйста укажите другую, убедитесь, что вы ввели все верно")  # проверка на фэйк почту
+            l = bot.send_message(message.chat.id,
+                                 "Некоректная дата, пожалуйста укажите другую, убедитесь, что вы ввели все верно")  # проверка на фэйк почту
             bot.register_next_step_handler(l, create_event_date)
         else:
             events.get(message.chat.id).append(datetime.date.today())
@@ -195,11 +200,19 @@ def spisok_registr(message):  # клавиатура, где есть распи
         bot.send_message(message.chat.id, "Нет доступных мероприятий")
 
     else:
-        nearest_events = cur.execute("SELECT name_event FROM events_list").fetchmany(10)
-        date_nearest_events = cur.execute("SELECT event_date FROM events_list").fetchmany(10)
+        nearest_events = cur.execute("SELECT name_event FROM events_list").fetchall()
+        date_nearest_events = cur.execute("SELECT event_date FROM events_list").fetchall()
         n_e = ''
         for i in range(len(nearest_events)):
-            if datetime.datetime.strptime(date_nearest_events[i][0], "%d%m%Y") >= datetime.datetime.now():
+            if datetime.datetime.strptime(date_nearest_events[i][0], "%d%m%Y") <= datetime.datetime.now():
+                delete_event = cur.execute(f"SELECT * FROM events_list WHERE name_event = ?",
+                                           (nearest_events[i][0],)).fetchone()
+                print(delete_event)
+                cur.execute(
+                    "INSERT INTO past_events_list (id, name_event, manager_name, manager_id, manager_email, user_count, date_register, event_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+                    delete_event)
+                cur.execute(f"DELETE FROM events_list WHERE name_event = ?", (nearest_events[i][0],))
+            else:
                 s = date_nearest_events[i][0][:2] + '-' + date_nearest_events[i][0][2:4] + '-' + date_nearest_events[i][
                                                                                                      0][4:]
                 n_e += str(i + 1) + '. ' + nearest_events[i][0] + ", дата: " + s + '\n'
@@ -213,7 +226,7 @@ def reg_name_event(message):
     conn = sqlite3.connect('sqlite3.db')
     cur = conn.cursor()
     if backe(message) == False:
-        nearest_events = cur.execute("SELECT id FROM events_list").fetchmany(10)
+        nearest_events = cur.execute("SELECT id FROM events_list").fetchall()
         n_e = ''
         for i in range(len(nearest_events)):
             n_e += str(i + 1) + ' ' + str(nearest_events[i][0]) + '\n'
