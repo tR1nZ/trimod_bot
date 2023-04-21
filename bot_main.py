@@ -207,7 +207,6 @@ def spisok_registr(message):  # клавиатура, где есть распи
             if datetime.datetime.strptime(date_nearest_events[i][0], "%d%m%Y") <= datetime.datetime.now():
                 delete_event = cur.execute(f"SELECT * FROM events_list WHERE name_event = ?",
                                            (nearest_events[i][0],)).fetchone()
-                print(delete_event)
                 cur.execute(
                     "INSERT INTO past_events_list (id, name_event, manager_name, manager_id, manager_email, user_count, date_register, event_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
                     delete_event)
